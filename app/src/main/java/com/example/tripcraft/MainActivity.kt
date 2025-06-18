@@ -140,7 +140,8 @@ fun MainScreen() {
         Text("Welcome to TripCraft main page!")
     }
 }
-
+/*this is a note testing the actions*/
+git
 @Composable
 fun LoginScreen(
     modifier: Modifier = Modifier,
