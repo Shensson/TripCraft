@@ -1,0 +1,17 @@
+# Android & IntelliJ specific
+*.iml
+.gradle/
+build/
+.idea/
+local.properties
+.DS_Store
+*.apk
+*.keystore
+captures/
+output.json
+
+# Sign-in keys
+google-services.json
+
+# Others
+*.log
