@@ -141,7 +141,7 @@ fun MainScreen() {
     }
 }
 /*this is a note etesting the actions*/
-/*note 2git*/
+/*note 2gitgit*/
 @Composable
 fun LoginScreen(
     modifier: Modifier = Modifier,
