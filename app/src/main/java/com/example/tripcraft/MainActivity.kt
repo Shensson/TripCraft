@@ -10,6 +10,7 @@ import androidx.compose.material3.ButtonDefaults
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -20,8 +21,10 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -30,10 +33,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Button
 import androidx.compose.material3.Divider
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -64,7 +69,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         auth = FirebaseAuth.getInstance()
 
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
@@ -74,28 +78,28 @@ class MainActivity : ComponentActivity() {
 
         googleSignInClient = GoogleSignIn.getClient(this, gso)
 
-        // Register launcher early
-        val launcher = registerForActivityResult(
-            ActivityResultContracts.StartActivityForResult()
-        ) { result ->
-            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-            try {
-                val account = task.getResult(ApiException::class.java)
-                firebaseAuthWithGoogle(account.idToken!!) {
-                    navController.navigate("main") {
-                        popUpTo("login") { inclusive = true }
-                    }
-                }
-            } catch (e: ApiException) {
-                Log.e("TripCraft", "Google sign-in failed", e)
-            }
-        }
-
         setContent {
             TripCraftTheme {
                 enableEdgeToEdge()
 
-                navController = rememberNavController()
+                val navController = rememberNavController()
+
+                val launcher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.StartActivityForResult()
+                ) { result ->
+                    val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+                    try {
+                        val account = task.getResult(ApiException::class.java)
+                        firebaseAuthWithGoogle(account.idToken!!) {
+                            navController.navigate("main") {
+                                popUpTo("login") { inclusive = true }
+                            }
+                        }
+                    } catch (e: ApiException) {
+                        Log.e("TripCraft", "Google sign-in failed", e)
+                    }
+                }
+
                 val startDestination = if (auth.currentUser != null) "main" else "login"
 
                 NavHost(navController = navController, startDestination = startDestination) {
@@ -108,12 +112,22 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                     composable("main") {
-                        MainScreen()
+                        MainScreen(
+                            onSignOut = {
+                                navController.navigate("login") {
+                                    popUpTo("main") { inclusive = true }
+                                }
+                            },
+                            onAddTrip = {
+                                // navController.navigate("addTrip")
+                            }
+                        )
                     }
                 }
             }
         }
     }
+
 
     private fun firebaseAuthWithGoogle(idToken: String, onSuccess: () -> Unit) {
         val credential = GoogleAuthProvider.getCredential(idToken, null)
@@ -132,14 +146,96 @@ class MainActivity : ComponentActivity() {
 
 
 @Composable
-fun MainScreen() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Text("Welcome to TripCraft main page!")
+fun MainScreen(
+    auth: FirebaseAuth = FirebaseAuth.getInstance(),
+    onSignOut: () -> Unit = {},
+    onAddTrip: () -> Unit = {}
+) {
+    val user = auth.currentUser
+
+    Box(modifier = Modifier
+        .fillMaxSize()
+        .background(MaterialTheme.colorScheme.background)) {
+
+        // Left Navigation Bar
+        Column(
+            modifier = Modifier
+                .width(80.dp)
+                .fillMaxHeight()
+                .background(MaterialTheme.colorScheme.surface),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Icon(
+                imageVector = Icons.Default.Person,
+                contentDescription = "Profile",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .size(32.dp)
+                    .clickable { /* profile click */ }
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            Button(
+                onClick = {
+                    auth.signOut()
+                    onSignOut()
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.Transparent,
+                    contentColor = MaterialTheme.colorScheme.primary
+                ),
+                contentPadding = PaddingValues(0.dp)
+            ) {
+                Text("Logout")
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        // Main content with title
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(start = 80.dp, top = 16.dp, end = 16.dp, bottom = 16.dp)
+        ) {
+            Text(
+                text = "Trip Craft",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    "No trips yet!",
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        }
+
+        // Add Trip Floating Button
+        FloatingActionButton(
+            onClick = onAddTrip,
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(24.dp)
+        ) {
+            Icon(Icons.Default.Add, contentDescription = "Add Trip")
+        }
     }
 }
+
+
 /*this is a note etesting the actions*/
 /*note 2gitgit*/
 @Composable
